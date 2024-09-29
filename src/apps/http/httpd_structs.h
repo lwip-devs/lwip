@@ -74,6 +74,7 @@ static const char *const g_psHTTPHeaderStrings[] = {
 #define HTTP_HDR_TSV            HTTP_CONTENT_TYPE("text/tsv")
 #define HTTP_HDR_SVG            HTTP_CONTENT_TYPE("image/svg+xml")
 #define HTTP_HDR_SVGZ           HTTP_CONTENT_TYPE_ENCODING("image/svg+xml", "gzip")
+#define HTTP_HDR_SSE            HTTP_CONTENT_TYPE("text/event-stream")
 
 #define HTTP_HDR_DEFAULT_TYPE   HTTP_CONTENT_TYPE("text/plain")
 
@@ -100,7 +101,8 @@ static const tHTTPHeader g_psHTTPHeaders[] = {
   { "xml",  HTTP_HDR_XML},
   { "xsl",  HTTP_HDR_XML},
   { "pdf",  HTTP_HDR_PDF},
-  { "json", HTTP_HDR_JSON}
+  { "json", HTTP_HDR_JSON},
+  { "sse", HTTP_HDR_SSE}
 #ifdef HTTPD_ADDITIONAL_CONTENT_TYPES
   /* If you need to add content types not listed here:
    * #define HTTPD_ADDITIONAL_CONTENT_TYPES {"ct1", HTTP_CONTENT_TYPE("text/ct1")}, {"exe", HTTP_CONTENT_TYPE("application/exe")}

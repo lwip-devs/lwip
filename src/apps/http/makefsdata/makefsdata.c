@@ -131,7 +131,7 @@ struct file_entry {
 int process_sub(FILE *data_file, FILE *struct_file);
 int process_file(FILE *data_file, FILE *struct_file, const char *filename);
 int file_write_http_header(FILE *data_file, const char *filename, int file_size, u16_t *http_hdr_len,
-                           u16_t *http_hdr_chksum, u8_t provide_content_len, int is_compressed);
+                           u16_t *http_hdr_chksum, u8_t provide_content_len, int is_compressed, int no_close);
 int file_put_ascii(FILE *file, const char *ascii_string, int len, int *i);
 int s_put_ascii(char *buf, const char *ascii_string, int len, int *i);
 void concat_files(const char *file1, const char *file2, const char *targetfile);
@@ -1009,17 +1009,25 @@ int process_file(FILE *data_file, FILE *struct_file, const char *filename)
   if (is_ssi) {
     flags |= FS_FILE_FLAGS_SSI;
   }
-  has_content_len = !is_ssi;
+
+  /* Check if we are dealing with Server-Sent events */
+  int is_sse = strstr(filename,".sse") != NULL;
+  if (is_sse) {
+    flags |= FS_FILE_FLAGS_SSE;
+  }
+
+  /* No content-lenght for SSE otherwise the client errors */
+  has_content_len = !is_ssi && !is_sse;
   can_be_compressed = includeHttpHeader && !is_ssi && file_can_be_compressed(filename);
   file_data = get_file_data(filename, &file_size, can_be_compressed, &is_compressed);
   if (includeHttpHeader) {
-    file_write_http_header(data_file, filename, file_size, &http_hdr_len, &http_hdr_chksum, has_content_len, is_compressed);
+    file_write_http_header(data_file, filename, file_size, &http_hdr_len, &http_hdr_chksum, has_content_len, is_compressed, is_sse);
     flags |= FS_FILE_FLAGS_HEADER_INCLUDED;
-    if (has_content_len) {
+    if (has_content_len || is_sse) {
       flags |= FS_FILE_FLAGS_HEADER_PERSISTENT;
-      if (useHttp11) {
-        flags |= FS_FILE_FLAGS_HEADER_HTTPVER_1_1;
-      }
+    }
+    if (useHttp11 && (has_content_len || is_sse)) {
+      flags |= FS_FILE_FLAGS_HEADER_HTTPVER_1_1;
     }
   }
   if (precalcChksum) {
@@ -1059,6 +1067,13 @@ int process_file(FILE *data_file, FILE *struct_file, const char *filename)
     fputs("FS_FILE_FLAGS_SSI", struct_file);
     flags_printed = 1;
   }
+  if (flags & FS_FILE_FLAGS_SSE) {
+    if (flags_printed) {
+      fputs(" | ", struct_file);
+    }
+    fputs("FS_FILE_FLAGS_SSE", struct_file);
+    flags_printed = 1;
+  }
   if (!flags_printed) {
     fputs("0", struct_file);
   }
@@ -1081,7 +1096,7 @@ int process_file(FILE *data_file, FILE *struct_file, const char *filename)
 }
 
 int file_write_http_header(FILE *data_file, const char *filename, int file_size, u16_t *http_hdr_len,
-                           u16_t *http_hdr_chksum, u8_t provide_content_len, int is_compressed)
+                           u16_t *http_hdr_chksum, u8_t provide_content_len, int is_compressed, int no_close)
 {
   int i = 0;
   int response_type = HTTP_HDR_OK;
@@ -1227,7 +1242,7 @@ int file_write_http_header(FILE *data_file, const char *filename, int file_size,
 
   /* HTTP/1.1 implements persistent connections */
   if (useHttp11) {
-    if (provide_content_len) {
+    if (provide_content_len || no_close) {
       cur_string = g_psHTTPHeaderStrings[HTTP_HDR_CONN_KEEPALIVE];
     } else {
       /* no Content-Length available, so a persistent connection is no possible

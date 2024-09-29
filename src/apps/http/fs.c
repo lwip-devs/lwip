@@ -51,6 +51,9 @@ fs_open(struct fs_file *file, const char *name)
 #if LWIP_HTTPD_CUSTOM_FILES
   if (fs_open_custom(file, name)) {
     file->flags |= FS_FILE_FLAGS_CUSTOM;
+#if LWIP_HTTPD_FILE_STATE
+      file->state = fs_state_init(file, name);
+#endif /* #if LWIP_HTTPD_FILE_STATE */
     return ERR_OK;
   }
 #endif /* LWIP_HTTPD_CUSTOM_FILES */
@@ -82,15 +85,18 @@ fs_open(struct fs_file *file, const char *name)
 void
 fs_close(struct fs_file *file)
 {
+  /* First free our states then close our file */
+#if LWIP_HTTPD_FILE_STATE
+  fs_state_free(file, file->state);
+#endif /* #if LWIP_HTTPD_FILE_STATE */
 #if LWIP_HTTPD_CUSTOM_FILES
   if ((file->flags & FS_FILE_FLAGS_CUSTOM) != 0) {
     fs_close_custom(file);
   }
 #endif /* LWIP_HTTPD_CUSTOM_FILES */
-#if LWIP_HTTPD_FILE_STATE
-  fs_state_free(file, file->state);
-#endif /* #if LWIP_HTTPD_FILE_STATE */
-  LWIP_UNUSED_ARG(file);
+
+  /* Reset our file */
+  memset(file,0,sizeof(file));
 }
 /*-----------------------------------------------------------------------------------*/
 #if LWIP_HTTPD_DYNAMIC_FILE_READ

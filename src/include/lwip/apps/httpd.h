@@ -44,6 +44,8 @@
 #include "httpd_opts.h"
 #include "lwip/err.h"
 #include "lwip/pbuf.h"
+#include "lwip/altcp.h"
+#include "lwip/apps/fs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -103,10 +105,9 @@ void http_set_cgi_handlers(const tCGI *pCGIs, int iNumHandlers);
 #if LWIP_HTTPD_CGI || LWIP_HTTPD_CGI_SSI
 
 #if LWIP_HTTPD_CGI_SSI
-/* we have to prototype this struct here to make it available for the handler */
-struct fs_file;
 
-/** Define this generic CGI handler in your application.
+/**
+ * Define this generic CGI handler in your application.
  * It is called once for every URI with parameters.
  * The parameters can be stored to the object passed as connection_state, which
  * is allocated to file->state via fs_state_init() from fs_open() or fs_open_custom().
@@ -248,6 +249,86 @@ void httpd_init(void);
 struct altcp_tls_config;
 void httpd_inits(struct altcp_tls_config *conf);
 #endif
+
+/**
+ * Broadcast provided data to all connections matching the given URI.
+ * Typically used to provide Server-Sent Event data to SSE streams.
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
+ */
+err_t http_broadcast(const char* uri, const void* ptr, u16_t size, u8_t apiflags);
+
+/**
+ * Write data to the given connection
+ */
+err_t http_write(struct altcp_pcb* pcb, const void* ptr, u16_t size, u8_t apiflags);
+
+/**
+ * Flush our HTTP output buffer
+ */
+err_t http_output(struct altcp_pcb *pcb);
+
+/**
+ * States associated with an HTTP connection
+ * Could keep this private and use an opaque type instead?
+ */
+struct http_state {
+  /* Next connection in our list or null if this is the last connection */
+  struct http_state *next;
+  /* File handle buffer */
+  struct fs_file file_handle;
+  /* Current file handle, null if no file open
+   TODO: Could we do without that one? */
+  struct fs_file *handle;
+  /* Pointer to first unsent byte in buf */
+  const char* file;
+  /* TCP connection control block */
+  struct altcp_pcb* pcb;
+  /* HTTP request */
+  struct pbuf* req;
+  /* HTTP request URI */
+  char uri[LWIP_HTTPD_MAX_URI_SIZE];
+
+#if LWIP_HTTPD_DYNAMIC_FILE_READ
+  char *buf;        /* File read buffer. */
+  int buf_len;      /* Size of file read buffer, buf. */
+#endif /* LWIP_HTTPD_DYNAMIC_FILE_READ */
+  u32_t left;       /* Number of unsent bytes in buf. */
+  u8_t retries;
+#if LWIP_HTTPD_SUPPORT_11_KEEPALIVE
+  u8_t keepalive;
+  u8_t stream;
+#endif /* LWIP_HTTPD_SUPPORT_11_KEEPALIVE */
+#if LWIP_HTTPD_SSI
+  struct http_ssi_state *ssi;
+#endif /* LWIP_HTTPD_SSI */
+#if LWIP_HTTPD_CGI
+  char *params[LWIP_HTTPD_MAX_CGI_PARAMETERS]; /* Params extracted from the request URI */
+  char *param_vals[LWIP_HTTPD_MAX_CGI_PARAMETERS]; /* Values for each extracted param */
+#endif /* LWIP_HTTPD_CGI */
+#if LWIP_HTTPD_DYNAMIC_HEADERS
+  const char *hdrs[NUM_FILE_HDR_STRINGS]; /* HTTP headers to be sent. */
+  char hdr_content_len[LWIP_HTTPD_MAX_CONTENT_LEN_SIZE];
+  u16_t hdr_pos;     /* The position of the first unsent header byte in the
+                        current string */
+  u16_t hdr_index;   /* The index of the hdr string currently being sent. */
+#endif /* LWIP_HTTPD_DYNAMIC_HEADERS */
+#if LWIP_HTTPD_TIMING
+  u32_t time_started;
+#endif /* LWIP_HTTPD_TIMING */
+#if LWIP_HTTPD_SUPPORT_POST
+  u32_t post_content_len_left;
+#if LWIP_HTTPD_POST_MANUAL_WND
+  u32_t unrecved_bytes;
+  u8_t no_auto_wnd;
+  u8_t post_finished;
+#endif /* LWIP_HTTPD_POST_MANUAL_WND */
+#endif /* LWIP_HTTPD_SUPPORT_POST*/
+};
+
+#if LWIP_HTTPD_KILL_OLD_ON_CONNECTIONS_EXCEEDED
+struct http_state* http_connection_list();
+#endif
+
 
 #ifdef __cplusplus
 }
