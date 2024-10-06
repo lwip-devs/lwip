@@ -258,46 +258,25 @@
 #define LWIP_HTTPD_SUPPORT_11_KEEPALIVE     0
 #endif
 
-/** Set this to 1 to support HTTP request coming in in multiple packets/pbufs */
-#if !defined LWIP_HTTPD_SUPPORT_REQUESTLIST || defined __DOXYGEN__
-#define LWIP_HTTPD_SUPPORT_REQUESTLIST      1
+/** Maximum size of HTTP request headers supported by this server.
+    If a request headers are larger and they do not feet in a single pbuf,
+    this server will return and error and abort the connection. */
+#if !defined LWIP_HTTPD_MAX_REQUEST_HEADERS_SIZE || defined __DOXYGEN__
+#define LWIP_HTTPD_MAX_REQUEST_HEADERS_SIZE 1024
 #endif
 
-#if LWIP_HTTPD_SUPPORT_REQUESTLIST
-/** Number of rx pbufs to enqueue to parse an incoming request (up to the first
-    newline) */
-#if !defined LWIP_HTTPD_REQ_QUEUELEN || defined __DOXYGEN__
-#define LWIP_HTTPD_REQ_QUEUELEN             5
+/** Maximum number of pbufs per HTTP request header.
+    Basically defines the maximum size of HTTP requests.
+    This will be one if you have large enough pbufs. */
+#if !defined LWIP_HTTPD_MAX_PBUF_PER_REQUEST || defined __DOXYGEN__
+#define LWIP_HTTPD_MAX_PBUF_PER_REQUEST     LWIP_MAX(1,LWIP_HTTPD_MAX_REQUEST_HEADERS_SIZE/(PBUF_POOL_BUFSIZE)+(LWIP_HTTPD_MAX_REQUEST_HEADERS_SIZE%(PBUF_POOL_BUFSIZE)?1:0) )
 #endif
 
-/** Number of (TCP payload-) bytes (in pbufs) to enqueue to parse and incoming
-    request (up to the first double-newline) */
-#if !defined LWIP_HTTPD_REQ_BUFSIZE || defined __DOXYGEN__
-#define LWIP_HTTPD_REQ_BUFSIZE              LWIP_HTTPD_MAX_REQ_LENGTH
-#endif
-
-/** Defines the maximum length of a HTTP request line (up to the first CRLF,
-    copied from pbuf into this a global buffer when pbuf- or packet-queues
-    are received - otherwise the input pbuf is used directly) */
-#if !defined LWIP_HTTPD_MAX_REQ_LENGTH || defined __DOXYGEN__
-#define LWIP_HTTPD_MAX_REQ_LENGTH           LWIP_MIN(1023, (LWIP_HTTPD_REQ_QUEUELEN * PBUF_POOL_BUFSIZE))
-#endif
-#endif /* LWIP_HTTPD_SUPPORT_REQUESTLIST */
-
-/** This is the size of a static buffer used when URIs end with '/'.
- * In this buffer, the directory requested is concatenated with all the
- * configured default file names.
- * Set to 0 to disable checking default filenames on non-root directories.
+/**
+ * Maximum size of URIs we can serve, inclusive terminating null character.
  */
-#if !defined LWIP_HTTPD_MAX_REQUEST_URI_LEN || defined __DOXYGEN__
-#define LWIP_HTTPD_MAX_REQUEST_URI_LEN      63
-#endif
-
-/** Maximum length of the filename to send as response to a POST request,
- * filled in by the application when a POST is finished.
- */
-#if !defined LWIP_HTTPD_POST_MAX_RESPONSE_URI_LEN || defined __DOXYGEN__
-#define LWIP_HTTPD_POST_MAX_RESPONSE_URI_LEN 63
+#if !defined LWIP_HTTPD_MAX_URI_SIZE || defined __DOXYGEN__
+#define LWIP_HTTPD_MAX_URI_SIZE      64
 #endif
 
 /** Set this to 0 to not send the SSI tag (default is on, so the tag will
@@ -313,12 +292,12 @@
 #define LWIP_HTTPD_ABORT_ON_CLOSE_MEM_ERROR  0
 #endif
 
-/** Set this to 1 to kill the oldest connection when running out of
+/**
+ * Set this to 1 to kill the oldest connection when running out of
  * memory for 'struct http_state' or 'struct http_ssi_state'.
- * ATTENTION: This puts all connections on a linked list, so may be kind of slow.
  */
-#if !defined LWIP_HTTPD_KILL_OLD_ON_CONNECTIONS_EXCEEDED || defined __DOXYGEN__
-#define LWIP_HTTPD_KILL_OLD_ON_CONNECTIONS_EXCEEDED 0
+#if !defined LWIP_HTTPD_OOM_KILL_OLDEST_CONNECTION || defined __DOXYGEN__
+#define LWIP_HTTPD_OOM_KILL_OLDEST_CONNECTION 0
 #endif
 
 /** Set this to 1 to send URIs without extension without headers
@@ -407,6 +386,36 @@
 #else
 #define HTTPD_FSDATA_FILE "fsdata.c"
 #endif
+#endif
+
+/** Those are here to help people migrate to newest version */
+
+#ifdef LWIP_HTTPD_SUPPORT_REQUESTLIST
+#error "LWIP_HTTPD_SUPPORT_REQUESTLIST is deprecated. You can safely remove it."
+#endif
+
+#ifdef LWIP_HTTPD_REQ_QUEUELEN
+#error "LWIP_HTTPD_REQ_QUEUELEN is deprecated. You can safely remove it."
+#endif
+
+#ifdef LWIP_HTTPD_REQ_BUFSIZE
+#error "LWIP_HTTPD_REQ_BUFSIZE is deprecated. You can safely remove it."
+#endif
+
+#ifdef LWIP_HTTPD_MAX_REQ_LENGTH
+#error "LWIP_HTTPD_MAX_REQ_LENGTH is deprecated. You can safely remove it."
+#endif
+
+#ifdef LWIP_HTTPD_MAX_REQUEST_URI_LEN
+#error "LWIP_HTTPD_MAX_REQUEST_URI_LEN is deprecated. Use LWIP_HTTPD_MAX_URI_SIZE instead."
+#endif
+
+#ifdef LWIP_HTTPD_POST_MAX_RESPONSE_URI_LEN
+#error "LWIP_HTTPD_POST_MAX_RESPONSE_URI_LEN is deprecated. Use LWIP_HTTPD_MAX_URI_SIZE instead."
+#endif
+
+#ifdef LWIP_HTTPD_KILL_OLD_ON_CONNECTIONS_EXCEEDED
+#error "LWIP_HTTPD_KILL_OLD_ON_CONNECTIONS_EXCEEDED is deprecated. Use LWIP_HTTPD_OOM_KILL_OLDEST_CONNECTION instead."
 #endif
 
 /**

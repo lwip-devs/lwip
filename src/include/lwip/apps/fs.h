@@ -55,6 +55,7 @@ struct fsdata_chksum {
 #define FS_FILE_FLAGS_HEADER_HTTPVER_1_1  0x04
 #define FS_FILE_FLAGS_SSI                 0x08
 #define FS_FILE_FLAGS_CUSTOM              0x10
+#define FS_FILE_FLAGS_SSE                 0x20
 
 /** Define FS_FILE_EXTENSION_T_DEFINED if you have typedef'ed to your private
  * pointer type (defaults to 'void' so the default usage is 'void*')
@@ -65,7 +66,9 @@ typedef void fs_file_extension;
 
 struct fs_file {
   const char *data;
+  /* Size of this file in bytes */
   int len;
+  /* Index of the last available byte */
   int index;
 #if LWIP_HTTPD_FILE_EXTENSION
   /* pextension is free for implementations to hold private (extensional)
